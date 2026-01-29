@@ -15,7 +15,7 @@ import {
 import { Stack } from "expo-router";
 
 // 1. SET YOUR CONSTANT IP HERE
-const BASE_URL = "http://127.0.0.1:8000/api";
+const BASE_URL = "https://usingrender-x7yq.onrender.com/";
 
 export default function Inventory() {
   const [items, setItems] = useState([]);
