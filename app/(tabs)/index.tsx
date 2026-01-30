@@ -1,32 +1,78 @@
-import { View, Text, Pressable, StyleSheet, Image, TextInput, Modal, FlatList } from "react-native";
+import { View, Text, Pressable, StyleSheet, Image, TextInput, Modal, FlatList, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+// Define the structure of search result items
+interface SearchResult {
+  id: string | number;
+  title: string;
+  category: string;
+  route: string;
+}
 
 export default function Index() {
   const router = useRouter();
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  // Sample data for search results
-  const searchData = [
-    { id: '1', title: 'Inventory Management', category: 'Feature', route: '/inventory' },
-    { id: '2', title: 'Sales Dashboard', category: 'Feature', route: '/sales' },
-    { id: '3', title: 'Product Catalog', category: 'Inventory', route: '/inventory' },
-    { id: '4', title: 'Sales Reports', category: 'Reports', route: '/sales' },
-    { id: '5', title: 'Stock Levels', category: 'Inventory', route: '/inventory' },
-    { id: '6', title: 'Customer Orders', category: 'Sales', route: '/sales' },
-  ];
+  // Replace with your actual backend API endpoint
+  const API_BASE_URL = "https://your-api-endpoint.com/api";
 
-  // Filter results based on search query
-  const filteredResults = searchData.filter(item =>
-    item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Debounce search to avoid excessive API calls
+  useEffect(() => {
+    if (searchQuery.trim() === "") {
+      setSearchResults([]);
+      return;
+    }
+
+    const delayDebounce = setTimeout(() => {
+      fetchSearchResults(searchQuery);
+    }, 500); // Wait 500ms after user stops typing
+
+    return () => clearTimeout(delayDebounce);
+  }, [searchQuery]);
+
+  const fetchSearchResults = async (query: string) => {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          // Add authentication token if required
+          // "Authorization": `Bearer ${yourAuthToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch search results");
+      }
+
+      const data = await response.json();
+      
+      // Assuming the API returns an array of results
+      // Adjust based on your actual API response structure
+      const results: SearchResult[] = data.results || data;
+      setSearchResults(results);
+    } catch (err) {
+      console.error("Search error:", err);
+      setError("Failed to fetch results. Please try again.");
+      setSearchResults([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSearchItemPress = (route: string) => {
     setSearchVisible(false);
     setSearchQuery("");
+    setSearchResults([]);
     router.push(route);
   };
 
@@ -96,12 +142,20 @@ export default function Index() {
         visible={searchVisible}
         transparent={true}
         animationType="fade"
-        onRequestClose={() => setSearchVisible(false)}
+        onRequestClose={() => {
+          setSearchVisible(false);
+          setSearchQuery("");
+          setSearchResults([]);
+        }}
       >
         <View style={styles.modalOverlay}>
           <Pressable 
             style={styles.modalBackdrop} 
-            onPress={() => setSearchVisible(false)}
+            onPress={() => {
+              setSearchVisible(false);
+              setSearchQuery("");
+              setSearchResults([]);
+            }}
           />
           
           <View style={styles.searchContainer}>
@@ -114,7 +168,7 @@ export default function Index() {
                 />
                 <TextInput
                   style={styles.searchInput}
-                  placeholder="Search features, inventory, sales..."
+                  placeholder="Capacitor Resistor ...."
                   placeholderTextColor="#737373"
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -122,7 +176,11 @@ export default function Index() {
                 />
               </View>
               <Pressable 
-                onPress={() => setSearchVisible(false)}
+                onPress={() => {
+                  setSearchVisible(false);
+                  setSearchQuery("");
+                  setSearchResults([]);
+                }}
                 style={styles.closeButton}
               >
                 <Text style={styles.closeButtonText}>✕</Text>
@@ -131,16 +189,35 @@ export default function Index() {
 
             {/* Search Results */}
             <View style={styles.searchResults}>
-              {searchQuery === "" ? (
+              {isLoading ? (
+                <View style={styles.emptyState}>
+                  <ActivityIndicator size="large" color="#F59E0B" />
+                  <Text style={[styles.emptyStateText, { marginTop: 12 }]}>
+                    Searching...
+                  </Text>
+                </View>
+              ) : error ? (
+                <View style={styles.emptyState}>
+                  <Text style={[styles.emptyStateText, { color: "#EF4444" }]}>
+                    {error}
+                  </Text>
+                  <Pressable
+                    style={styles.retryButton}
+                    onPress={() => fetchSearchResults(searchQuery)}
+                  >
+                    <Text style={styles.retryButtonText}>Retry</Text>
+                  </Pressable>
+                </View>
+              ) : searchQuery === "" ? (
                 <View style={styles.emptyState}>
                   <Text style={styles.emptyStateText}>
                     Start typing to search...
                   </Text>
                 </View>
-              ) : filteredResults.length > 0 ? (
+              ) : searchResults.length > 0 ? (
                 <FlatList
-                  data={filteredResults}
-                  keyExtractor={(item) => item.id}
+                  data={searchResults}
+                  keyExtractor={(item) => item.id.toString()}
                   renderItem={({ item }) => (
                     <Pressable
                       style={({ pressed }) => [
@@ -391,5 +468,17 @@ const styles = StyleSheet.create({
     color: "#737373",
     fontSize: 15,
     textAlign: "center",
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    backgroundColor: "#F59E0B",
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: "#000000",
+    fontSize: 14,
+    fontWeight: "700",
   },
 });
