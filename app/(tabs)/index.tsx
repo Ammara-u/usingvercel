@@ -20,7 +20,7 @@ export default function Index() {
   const [error, setError] = useState("");
 
   // Replace with your actual backend API endpoint
-  const API_BASE_URL = "https://your-api-endpoint.com/api";
+  const API_BASE_URL = "https://usingrender-x7yq.onrender.com";
 
   // Debounce search to avoid excessive API calls
   useEffect(() => {
@@ -41,7 +41,7 @@ export default function Index() {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}`, {
+      const response = await fetch(`${API_BASE_URL}/seals/search?q=${encodeURIComponent(query)}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
