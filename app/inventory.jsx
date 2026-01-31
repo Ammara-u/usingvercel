@@ -10,11 +10,14 @@ import {
   TextInput,
   ScrollView,
   StatusBar,
-  Alert
+  Alert,
+  Dimensions
 } from "react-native";
 import { Stack } from "expo-router";
 
 const BASE_URL = "https://usingrender-x7yq.onrender.com";
+const { width } = Dimensions.get('window');
+const isSmallScreen = width < 400;
 
 export default function Inventory() {
   const [items, setItems] = useState([]);
@@ -23,7 +26,7 @@ export default function Inventory() {
   const [sellModalVisible, setSellModalVisible] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [restockModalVisible, setRestockModalVisible] = useState(false);
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false); // ← NEW
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
   const [selectedItem, setSelectedItem] = useState(null);
   const [quantity, setQuantity] = useState("1");
@@ -40,7 +43,7 @@ export default function Inventory() {
   const handleDeleteSeal = (item) => {
     console.log("Delete button clicked for:", item);
     setSelectedItem(item);
-    setDeleteModalVisible(true); // ← Show custom modal instead of Alert
+    setDeleteModalVisible(true);
   };
 
   const confirmDeleteSeal = async () => {
@@ -49,10 +52,7 @@ export default function Inventory() {
     const itemToDelete = selectedItem;
     console.log("Confirmed delete for:", itemToDelete.id);
 
-    // Close modal immediately
     setDeleteModalVisible(false);
-
-    // Optimistic UI update: remove item immediately
     setItems((prev) => prev.filter((i) => i.id !== itemToDelete.id));
 
     try {
@@ -67,11 +67,8 @@ export default function Inventory() {
       }
 
       console.log("✅ Deleted successfully");
-      // Optional: Show success message
-      // Alert.alert("Success", `${itemToDelete.nameOfSeal} has been deleted`);
     } catch (err) {
       console.error("❌ Delete error:", err);
-      // If delete failed, refresh from backend to restore
       fetchItems();
       Alert.alert("Error", "Could not delete seal. The item will be restored.");
     } finally {
@@ -93,7 +90,7 @@ export default function Inventory() {
       const itemsWithNumbers = json.map(item => ({
         ...item,
         stock: Number(item.stock),
-        minStock: Number(item.minStock)
+        minStock: Number(item.minStock) || 5
       }));
 
       setItems(itemsWithNumbers);
@@ -191,7 +188,9 @@ export default function Inventory() {
       <Text style={styles.columnHeader}>CODE</Text>
       <Text style={styles.columnHeader}>PRICE</Text>
       <Text style={styles.columnHeader}>STOCK</Text>
-      <Text style={[styles.columnHeader, { flex: 1.2 }]}>ACTIONS</Text>
+      {!isSmallScreen && (
+        <Text style={[styles.columnHeader, { flex: 1.2 }]}>ACTIONS</Text>
+      )}
     </View>
   );
 
@@ -434,47 +433,79 @@ export default function Inventory() {
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
             <View style={styles.itemCard}>
-              <Text style={[styles.cell, styles.nameText, { flex: 1.5 }]}>
-                {item.nameOfSeal}
-              </Text>
-              <Text style={styles.cell}>{item.partCode}</Text>
-              <Text style={styles.cell}>Rs {item.price}</Text>
-              <Text
-                style={[
-                  styles.cell,
-                  {
-                    fontWeight: "bold",
-                    color: (parseFloat(item.stock) < (parseFloat(item.minStock) || 5)) 
-                      ? "#EF4444" 
-                      : "#10B981"
-                  }
-                ]}
-              >
-                {item.stock}
-              </Text>
-
-              <View style={[styles.actionCell, { flex: 1.5 }]}>
-                <TouchableOpacity
-                  style={styles.sellBtn}
-                  onPress={() => openSellModal(item)}
+              {/* Main Row */}
+              <View style={styles.mainRow}>
+                <Text style={[styles.cell, styles.nameText, { flex: 1.5 }]}>
+                  {item.nameOfSeal}
+                </Text>
+                <Text style={styles.cell}>{item.partCode}</Text>
+                <Text style={styles.cell}>Rs {item.price}</Text>
+                <Text
+                  style={[
+                    styles.cell,
+                    {
+                      fontWeight: "bold",
+                      color: item.stock <= item.minStock
+                        ? "#EF4444" 
+                        : "#10B981"
+                    }
+                  ]}
                 >
-                  <Text style={styles.btnText}>Sell</Text>
-                </TouchableOpacity>
+                  {item.stock}
+                </Text>
 
-                <TouchableOpacity
-                  style={styles.addBtn}
-                  onPress={() => openRestockModal(item)}
-                >
-                  <Text style={styles.btnText}>+</Text>
-                </TouchableOpacity>
+                {/* Actions on same row for larger screens */}
+                {!isSmallScreen && (
+                  <View style={[styles.actionCell, { flex: 1.2 }]}>
+                    <TouchableOpacity
+                      style={styles.sellBtn}
+                      onPress={() => openSellModal(item)}
+                    >
+                      <Text style={styles.btnText}>Sell</Text>
+                    </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.deleteBtn}
-                  onPress={() => handleDeleteSeal(item)}
-                >
-                  <Text style={styles.btnText}>🗑</Text>
-                </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.addBtn}
+                      onPress={() => openRestockModal(item)}
+                    >
+                      <Text style={styles.btnText}>+</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.deleteBtn}
+                      onPress={() => handleDeleteSeal(item)}
+                    >
+                      <Text style={styles.btnText}>🗑</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
+
+              {/* Actions on second row for small screens */}
+              {isSmallScreen && (
+                <View style={styles.actionRow}>
+                  <TouchableOpacity
+                    style={[styles.sellBtn, { flex: 1 }]}
+                    onPress={() => openSellModal(item)}
+                  >
+                    <Text style={styles.btnText}>Sell</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.addBtn, { flex: 1 }]}
+                    onPress={() => openRestockModal(item)}
+                  >
+                    <Text style={styles.btnText}>Restock</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.deleteBtn, { flex: 1 }]}
+                    onPress={() => handleDeleteSeal(item)}
+                  >
+                    <Text style={styles.btnText}>🗑 Delete</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </View>
           )}
         />
@@ -509,14 +540,24 @@ const styles = StyleSheet.create({
   },
   columnHeader: { flex: 1, color: "#64748B", fontWeight: "bold", fontSize: 12, textAlign: "center" },
   itemCard: {
-    flexDirection: "row",
     backgroundColor: "#1E293B",
     padding: 15,
     borderRadius: 12,
     marginBottom: 10,
-    alignItems: "center",
     borderWidth: 1,
     borderColor: "#334155"
+  },
+  mainRow: {
+    flexDirection: "row",
+    alignItems: "center"
+  },
+  actionRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#334155"
   },
   deleteBtn: {
     backgroundColor: "#EF4444",
@@ -529,7 +570,7 @@ const styles = StyleSheet.create({
   actionCell: { flexDirection: "row", gap: 8 },
   sellBtn: { backgroundColor: "#F59E0B", paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6 },
   addBtn: { backgroundColor: "#38BDF8", paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6 },
-  btnText: { color: "white", fontSize: 12, fontWeight: "bold" },
+  btnText: { color: "white", fontSize: 12, fontWeight: "bold", textAlign: "center" },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.7)",
