@@ -14,7 +14,6 @@ import {
 } from "react-native";
 import { Stack } from "expo-router";
 
-// 1. SET YOUR CONSTANT IP HERE
 const BASE_URL = "https://usingrender-x7yq.onrender.com";
 
 export default function Inventory() {
@@ -24,6 +23,7 @@ export default function Inventory() {
   const [sellModalVisible, setSellModalVisible] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [restockModalVisible, setRestockModalVisible] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false); // ← NEW
 
   const [selectedItem, setSelectedItem] = useState(null);
   const [quantity, setQuantity] = useState("1");
@@ -36,48 +36,48 @@ export default function Inventory() {
     stock: "",
     minStock: "5"
   });
-const handleDeleteSeal = (item) => {
-  console.log("Delete button clicked for:", item);
 
-  Alert.alert(
-    "Delete Seal",
-    `Are you sure you want to delete "${item.nameofSeal}"?`,
-    [
-      { text: "Cancel", style: "cancel" },
-      { 
-        text: "Delete", 
-        style: "destructive", 
-        onPress: () => confirmDeleteSeal(item) 
+  const handleDeleteSeal = (item) => {
+    console.log("Delete button clicked for:", item);
+    setSelectedItem(item);
+    setDeleteModalVisible(true); // ← Show custom modal instead of Alert
+  };
+
+  const confirmDeleteSeal = async () => {
+    if (!selectedItem) return;
+    
+    const itemToDelete = selectedItem;
+    console.log("Confirmed delete for:", itemToDelete.id);
+
+    // Close modal immediately
+    setDeleteModalVisible(false);
+
+    // Optimistic UI update: remove item immediately
+    setItems((prev) => prev.filter((i) => i.id !== itemToDelete.id));
+
+    try {
+      const res = await fetch(`${BASE_URL}/seals/${itemToDelete.id}/`, {
+        method: "DELETE",
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Delete failed:", errorText);
+        throw new Error("Delete failed");
       }
-    ]
-  );
-};
 
-const confirmDeleteSeal = async (item) => {
-  console.log("Confirmed delete for:", item.id);
-
-  // Optimistic UI update: remove item immediately
-  setItems((prev) => prev.filter((i) => i.id !== item.id));
-
-  try {
-    const res = await fetch(`${BASE_URL}/seals/${item.id}/`, {
-      method: "DELETE",
-    });
-
-    if (!res.ok) throw new Error("Delete failed");
-
-    console.log("Deleted successfully");
-    Alert.alert("Deleted", "Seal removed successfully");
-  } catch (err) {
-    console.error(err);
-    Alert.alert("Error", "Could not delete seal");
-    // If delete failed, refresh from backend
-    fetchItems();
-  }
-};
-
-
-
+      console.log("✅ Deleted successfully");
+      // Optional: Show success message
+      // Alert.alert("Success", `${itemToDelete.nameOfSeal} has been deleted`);
+    } catch (err) {
+      console.error("❌ Delete error:", err);
+      // If delete failed, refresh from backend to restore
+      fetchItems();
+      Alert.alert("Error", "Could not delete seal. The item will be restored.");
+    } finally {
+      setSelectedItem(null);
+    }
+  };
 
   useEffect(() => {
     fetchItems();
@@ -85,7 +85,6 @@ const confirmDeleteSeal = async (item) => {
 
   const fetchItems = async () => {
     try {
-      // Use BASE_URL
       const res = await fetch(`${BASE_URL}/seals/`);
       if (!res.ok) throw new Error("Could not fetch items");
       
@@ -105,60 +104,53 @@ const confirmDeleteSeal = async (item) => {
     }
   };
 
-const handleUpdateStock = async (type) => {
-  if (!selectedItem || !quantity) return;
+  const handleUpdateStock = async (type) => {
+    if (!selectedItem || !quantity) return;
 
-  const qtyChange = parseInt(quantity);
-  const newStock = type === "sell" 
-      ? selectedItem.stock - qtyChange 
-      : selectedItem.stock + qtyChange;
+    const qtyChange = parseInt(quantity);
+    const newStock = type === "sell" 
+        ? selectedItem.stock - qtyChange 
+        : selectedItem.stock + qtyChange;
 
-  try {
-    // --- Step 1: Update inventory ---
-    const invRes = await fetch(`${BASE_URL}/seals/${selectedItem.id}/`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ stock: newStock }),
-    });
-
-    if (!invRes.ok) throw new Error("Inventory update failed");
-
-    // --- Step 2: Log sale only if selling ---
-    if (type === "sell") {
-      const salePayload = {
-        sealName: selectedItem.nameOfSeal,       // your Sale model expects sealName
-        quantity: qtyChange,
-        sold_price: parseFloat(selectedItem.price)  // make sure it’s a number
-      };
-
-      const saleRes = await fetch(`${BASE_URL}/sales/`, {
-        method: "POST",
+    try {
+      const invRes = await fetch(`${BASE_URL}/seals/${selectedItem.id}/`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(salePayload),
+        body: JSON.stringify({ stock: newStock }),
       });
 
-      if (!saleRes.ok) {
-        Alert.alert("Partial Success", "Stock updated, but sale record failed.");
+      if (!invRes.ok) throw new Error("Inventory update failed");
+
+      if (type === "sell") {
+        const salePayload = {
+          sealName: selectedItem.nameOfSeal,
+          quantity: qtyChange,
+          sold_price: parseFloat(selectedItem.price)
+        };
+
+        const saleRes = await fetch(`${BASE_URL}/sales/`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(salePayload),
+        });
+
+        if (!saleRes.ok) {
+          Alert.alert("Partial Success", "Stock updated, but sale record failed.");
+        } else {
+          Alert.alert("Success", `Sold ${qtyChange} units of ${selectedItem.nameOfSeal}`);
+        }
       } else {
-        Alert.alert("Success", `Sold ${qtyChange} units of ${selectedItem.nameOfSeal}`);
+        Alert.alert("Success", `Stock updated to ${newStock}`);
       }
-    } else {
-      Alert.alert("Success", `Stock updated to ${newStock}`);
+
+      fetchItems();
+      setSellModalVisible(false);
+      setRestockModalVisible(false);
+    } catch (err) {
+      console.error(err);
+      Alert.alert("Error", "Network or server error.");
     }
-
-    // --- Step 3: Refresh inventory ---
-    fetchItems();
-    setSellModalVisible(false);
-    setRestockModalVisible(false);
-  } catch (err) {
-    console.error(err);
-    Alert.alert(
-      "Error",
-      "Network or server error. Make sure Django backend is running at 127.0.0.1:8000"
-    );
-  }
-};
-
+  };
 
   const handleAddNewItem = async () => {
     const payload = {
@@ -182,6 +174,7 @@ const handleUpdateStock = async (type) => {
           nameOfSeal: "", partCode: "", description: "",
           price: "", stock: "", minStock: "5"
         });
+        Alert.alert("Success", "Seal added to inventory");
       } else {
         Alert.alert("Error", "Check fields and try again.");
       }
@@ -189,47 +182,6 @@ const handleUpdateStock = async (type) => {
       Alert.alert("Connection Error", "Is the backend running?");
     }
   };
-
-  // ... (Rest of your render and styles remain the same)
-
-  // Add new seal
-  // const handleAddNewItem = async () => {
-  //   const payload = {
-  //     ...newItem,
-  //     price: parseFloat(newItem.price) || 0,
-  //     stock: parseInt(newItem.stock) || 0,
-  //     minStock: parseInt(newItem.minStock) || 5
-  //   };
-
-  //   try {
-  //     const response = await fetch("http://127.0.0.1:8000/api/seals/", {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify(payload)
-  //     });
-
-  //     const data = await response.json();
-
-  //     if (response.ok) {
-  //       fetchItems();
-  //       setAddModalVisible(false);
-  //       setNewItem({
-  //         nameOfSeal: "",
-  //         partCode: "",
-  //         description: "",
-  //         price: "",
-  //         stock: "",
-  //         minStock: "5"
-  //       });
-  //     } else {
-  //       console.error("Failed to save:", data);
-  //       alert("Failed to save: " + JSON.stringify(data));
-  //     }
-  //   } catch (error) {
-  //     console.error(error);
-  //     alert("Error saving item. Check console.");
-  //   }
-  // };
 
   const renderHeader = () => (
     <View style={styles.headerRow}>
@@ -266,6 +218,42 @@ const handleUpdateStock = async (type) => {
         }}
       />
 
+      {/* --- DELETE CONFIRMATION MODAL --- */}
+      <Modal visible={deleteModalVisible} transparent={true} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>⚠️ Delete Seal</Text>
+            <Text style={{ color: "#94A3B8", marginBottom: 20, textAlign: "center" }}>
+              Are you sure you want to delete{"\n"}
+              <Text style={{ color: "#F8FAFC", fontWeight: "bold" }}>
+                "{selectedItem?.nameOfSeal}"
+              </Text>
+              ?{"\n"}
+              This action cannot be undone.
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: "#334155" }]}
+                onPress={() => {
+                  setDeleteModalVisible(false);
+                  setSelectedItem(null);
+                }}
+              >
+                <Text style={styles.btnText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: "#EF4444" }]}
+                onPress={confirmDeleteSeal}
+              >
+                <Text style={styles.btnText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* --- ADD NEW SEAL MODAL --- */}
       <Modal visible={addModalVisible} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
@@ -273,68 +261,67 @@ const handleUpdateStock = async (type) => {
             <Text style={styles.modalTitle}>New Entry</Text>
 
             <ScrollView style={{ width: "100%" }}>
-  <Text style={styles.inputLabel}>Seal Name</Text>
-  <TextInput
-    style={styles.formInput}
-    placeholder="e.g. Hydraulic Rod Seal"
-    placeholderTextColor="#94A3B8"
-    value={newItem.nameOfSeal}
-    onChangeText={(t) => setNewItem({ ...newItem, nameOfSeal: t })}
-  />
+              <Text style={styles.inputLabel}>Seal Name</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="e.g. Hydraulic Rod Seal"
+                placeholderTextColor="#94A3B8"
+                value={newItem.nameOfSeal}
+                onChangeText={(t) => setNewItem({ ...newItem, nameOfSeal: t })}
+              />
 
-  <Text style={styles.inputLabel}>Part Code</Text>
-  <TextInput
-    style={styles.formInput}
-    placeholder="e.g. 100234"
-    placeholderTextColor="#94A3B8"
-    keyboardType="numeric"
-    value={newItem.partCode}
-    onChangeText={(t) => setNewItem({ ...newItem, partCode: t })}
-  />
+              <Text style={styles.inputLabel}>Part Code</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="e.g. 100234"
+                placeholderTextColor="#94A3B8"
+                keyboardType="numeric"
+                value={newItem.partCode}
+                onChangeText={(t) => setNewItem({ ...newItem, partCode: t })}
+              />
 
-  <Text style={styles.inputLabel}>Description</Text>
-  <TextInput
-    style={[styles.formInput, { height: 60 }]}
-    placeholder="Enter a description for the seal"
-    placeholderTextColor="#94A3B8"
-    multiline
-    value={newItem.description}
-    onChangeText={(t) => setNewItem({ ...newItem, description: t })}
-  />
+              <Text style={styles.inputLabel}>Description</Text>
+              <TextInput
+                style={[styles.formInput, { height: 60 }]}
+                placeholder="Enter a description for the seal"
+                placeholderTextColor="#94A3B8"
+                multiline
+                value={newItem.description}
+                onChangeText={(t) => setNewItem({ ...newItem, description: t })}
+              />
 
-  <Text style={styles.inputLabel}>Price </Text>
-  <TextInput
-    style={styles.formInput}
-    placeholder="0.00"
-    placeholderTextColor="#94A3B8"
-    keyboardType="numeric"
-    value={newItem.price}
-    onChangeText={(t) => setNewItem({ ...newItem, price: t })}
-  />
+              <Text style={styles.inputLabel}>Price</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="0.00"
+                placeholderTextColor="#94A3B8"
+                keyboardType="numeric"
+                value={newItem.price}
+                onChangeText={(t) => setNewItem({ ...newItem, price: t })}
+              />
 
-  <Text style={styles.inputLabel}>Initial Stock</Text>
-  <TextInput
-    style={styles.formInput}
-    placeholder="Current quantity"
-    placeholderTextColor="#94A3B8"
-    keyboardType="numeric"
-    value={newItem.stock}
-    onChangeText={(t) => setNewItem({ ...newItem, stock: t })}
-  />
+              <Text style={styles.inputLabel}>Initial Stock</Text>
+              <TextInput
+                style={styles.formInput}
+                placeholder="Current quantity"
+                placeholderTextColor="#94A3B8"
+                keyboardType="numeric"
+                value={newItem.stock}
+                onChangeText={(t) => setNewItem({ ...newItem, stock: t })}
+              />
 
-  <Text style={[styles.inputLabel, { color: "#38BDF8" }]}>
-    Minimum Stock Alert Level
-  </Text>
-  <TextInput
-    style={[styles.formInput, { borderColor: "#38BDF8" }]}
-    placeholder="Alert me when stock is below..."
-    placeholderTextColor="#94A3B8"
-    keyboardType="numeric"
-    value={newItem.minStock}
-    onChangeText={(t) => setNewItem({ ...newItem, minStock: t })}
-  />
-</ScrollView>
-
+              <Text style={[styles.inputLabel, { color: "#38BDF8" }]}>
+                Minimum Stock Alert Level
+              </Text>
+              <TextInput
+                style={[styles.formInput, { borderColor: "#38BDF8" }]}
+                placeholder="Alert me when stock is below..."
+                placeholderTextColor="#94A3B8"
+                keyboardType="numeric"
+                value={newItem.minStock}
+                onChangeText={(t) => setNewItem({ ...newItem, minStock: t })}
+              />
+            </ScrollView>
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
@@ -405,6 +392,8 @@ const handleUpdateStock = async (type) => {
               keyboardType="numeric"
               value={quantity}
               onChangeText={setQuantity}
+              placeholder="Enter quantity to sell"
+              placeholderTextColor="#94A3B8"
             />
 
             <View style={styles.modalButtons}>
@@ -449,46 +438,43 @@ const handleUpdateStock = async (type) => {
                 {item.nameOfSeal}
               </Text>
               <Text style={styles.cell}>{item.partCode}</Text>
-              <Text style={styles.cell}>{item.price}</Text>
- <Text
-  style={[
-    styles.cell,
-    {
-      fontWeight: "bold",
-      color: (parseFloat(item.stock) < (parseFloat(item.minStock) || 5)) 
-        ? "#EF4444" 
-        : "#10B981"
-    }
-  ]}
->
-  {item.stock}
-</Text>
-
-
+              <Text style={styles.cell}>Rs {item.price}</Text>
+              <Text
+                style={[
+                  styles.cell,
+                  {
+                    fontWeight: "bold",
+                    color: (parseFloat(item.stock) < (parseFloat(item.minStock) || 5)) 
+                      ? "#EF4444" 
+                      : "#10B981"
+                  }
+                ]}
+              >
+                {item.stock}
+              </Text>
 
               <View style={[styles.actionCell, { flex: 1.5 }]}>
-  <TouchableOpacity
-    style={styles.sellBtn}
-    onPress={() => openSellModal(item)}
-  >
-    <Text style={styles.btnText}>Sell</Text>
-  </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.sellBtn}
+                  onPress={() => openSellModal(item)}
+                >
+                  <Text style={styles.btnText}>Sell</Text>
+                </TouchableOpacity>
 
-  <TouchableOpacity
-    style={styles.addBtn}
-    onPress={() => openRestockModal(item)}
-  >
-    <Text style={styles.btnText}>+</Text>
-  </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.addBtn}
+                  onPress={() => openRestockModal(item)}
+                >
+                  <Text style={styles.btnText}>+</Text>
+                </TouchableOpacity>
 
-  <TouchableOpacity
-    style={styles.deleteBtn}
-    onPress={() => handleDeleteSeal(item)}
-  >
-    <Text style={styles.btnText}>🗑</Text>
-  </TouchableOpacity>
-</View>
-
+                <TouchableOpacity
+                  style={styles.deleteBtn}
+                  onPress={() => handleDeleteSeal(item)}
+                >
+                  <Text style={styles.btnText}>🗑</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         />
@@ -533,12 +519,11 @@ const styles = StyleSheet.create({
     borderColor: "#334155"
   },
   deleteBtn: {
-  backgroundColor: "#EF4444",
-  paddingVertical: 6,
-  paddingHorizontal: 10,
-  borderRadius: 6,
-},
-
+    backgroundColor: "#EF4444",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+  },
   cell: { flex: 1, textAlign: "center", color: "#CBD5E1", fontSize: 13 },
   nameText: { fontWeight: "bold", color: "#F8FAFC", textAlign: "left" },
   actionCell: { flexDirection: "row", gap: 8 },
