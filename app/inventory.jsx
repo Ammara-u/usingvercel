@@ -41,7 +41,7 @@ const handleDeleteSeal = (item) => {
 
   Alert.alert(
     "Delete Seal",
-    `Are you sure you want to delete "${item.nameOfSeal}"?`,
+    `Are you sure you want to delete "${item.nameofSeal}"?`,
     [
       { text: "Cancel", style: "cancel" },
       { 
