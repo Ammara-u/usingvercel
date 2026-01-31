@@ -159,8 +159,10 @@ export default function SealDetailPage() {
               pressed && { opacity: 0.7 }
             ]}
             onPress={() => {
-              // TODO: Navigate to edit page
-              console.log("Edit seal:", seal.id);
+router.push({
+  pathname: "/edit-seal",
+  params: { id: seal.id },
+});
             }}
           >
             <Text style={styles.editButtonText}>✏️ Edit Seal</Text>
@@ -169,6 +171,7 @@ export default function SealDetailPage() {
           <Pressable 
             style={({ pressed }) => [
               styles.recordSaleButton,
+
               pressed && { opacity: 0.9 }
             ]}
             onPress={() => {
