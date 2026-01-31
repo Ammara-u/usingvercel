@@ -20,7 +20,7 @@ export default function SealDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const API_BASE_URL = "https://usingrender-x7yq.onrender.com/";
+  const API_BASE_URL = "https://usingrender-x7yq.onrender.com";
 
   useEffect(() => {
     fetchSealDetails();
