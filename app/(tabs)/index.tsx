@@ -41,7 +41,9 @@ export default function Index() {
     setError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/seals/search?q=${encodeURIComponent(query)}`, {
+      // fetch(`${API_BASE_URL}/seals/search/?q=${encodeURIComponent(query)}`)
+
+      const response = await fetch(`${API_BASE_URL}/seals/search/?q=${encodeURIComponent(query)}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
