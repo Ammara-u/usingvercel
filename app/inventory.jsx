@@ -32,7 +32,6 @@ export default function Inventory() {
   const [quantity, setQuantity] = useState("1");
 
   const [newItem, setNewItem] = useState({
-    nameOfSeal: "",
     partCode: "",
     description: "",
     price: "",
@@ -182,9 +181,6 @@ export default function Inventory() {
 
   const renderHeader = () => (
     <View style={styles.headerRow}>
-      <Text style={[styles.columnHeader, { flex: 1.5, textAlign: "left" }]}>
-        NAME
-      </Text>
       <Text style={styles.columnHeader}>CODE</Text>
       <Text style={styles.columnHeader}>PRICE</Text>
       <Text style={styles.columnHeader}>STOCK</Text>
@@ -260,14 +256,7 @@ export default function Inventory() {
             <Text style={styles.modalTitle}>New Entry</Text>
 
             <ScrollView style={{ width: "100%" }}>
-              <Text style={styles.inputLabel}>Seal Name</Text>
-              <TextInput
-                style={styles.formInput}
-                placeholder="e.g. Hydraulic Rod Seal"
-                placeholderTextColor="#94A3B8"
-                value={newItem.nameOfSeal}
-                onChangeText={(t) => setNewItem({ ...newItem, nameOfSeal: t })}
-              />
+              
 
               <Text style={styles.inputLabel}>Part Code</Text>
               <TextInput
@@ -435,10 +424,10 @@ export default function Inventory() {
             <View style={styles.itemCard}>
               {/* Main Row */}
               <View style={styles.mainRow}>
-                <Text style={[styles.cell, styles.nameText, { flex: 1.5 }]}>
-                  {item.nameOfSeal}
-                </Text>
-                <Text style={styles.cell}>{item.partCode}</Text>
+                
+<Text style={[styles.cell, { flex: 1.5, textAlign: "left", fontWeight: "bold" }]}>
+  {item.partCode}
+</Text>
                 <Text style={styles.cell}>Rs {item.price}</Text>
                 <Text
                   style={[
