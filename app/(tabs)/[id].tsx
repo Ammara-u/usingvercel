@@ -5,7 +5,6 @@ import { useState, useEffect } from "react";
 
 interface SealDetail {
   id: number;
-  nameOfSeal: string;
   partCode: number;
   description: string;
   price: number;
@@ -20,7 +19,7 @@ export default function SealDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const API_BASE_URL = "https://usingrender-x7yq.onrender.com";
+  const API_BASE_URL = "http://127.0.0.1:8000/";
 
   useEffect(() => {
     fetchSealDetails();
@@ -29,7 +28,7 @@ export default function SealDetailPage() {
   const fetchSealDetails = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/seals/${id}/`, {
+      const response = await fetch(`${API_BASE_URL}/seals/${id}`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -108,10 +107,6 @@ export default function SealDetailPage() {
 
         {/* Main Card */}
         <View style={styles.card}>
-          <Text style={styles.sealName}>{seal.nameOfSeal}</Text>
-          
-          <View style={styles.divider} />
-
           {/* Details Grid */}
           <View style={styles.detailsGrid}>
             <View style={styles.detailRow}>

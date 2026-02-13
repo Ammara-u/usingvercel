@@ -20,7 +20,7 @@ export default function Index() {
   const [error, setError] = useState("");
 
   // Replace with your actual backend API endpoint
-  const API_BASE_URL = "https://usingrender-x7yq.onrender.com";
+  const API_BASE_URL = "http://127.0.0.1:8000/";
 
   // Debounce search to avoid excessive API calls
   useEffect(() => {
@@ -168,14 +168,15 @@ export default function Index() {
                   source={require("../../assets/images/search_3856329.png")}
                   style={{ width: 20, height: 20, tintColor: "#A3A3A3" }}
                 />
-                <TextInput
-                  style={styles.searchInput}
-                  placeholder="Capacitor Resistor ...."
-                  placeholderTextColor="#737373"
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                  autoFocus={true}
-                />
+               <TextInput
+  style={styles.searchInput}
+  placeholder="Search by Name or ID (e.g. 101)..." // Updated placeholder
+  placeholderTextColor="#737373"
+  keyboardType="default" // Keeps it flexible for name or ID
+  value={searchQuery}
+  onChangeText={setSearchQuery}
+  autoFocus={true}
+/>
               </View>
               <Pressable 
                 onPress={() => {
@@ -218,24 +219,31 @@ export default function Index() {
                 </View>
               ) : searchResults.length > 0 ? (
                 <FlatList
-                  data={searchResults}
-                  keyExtractor={(item) => item.id.toString()}
-                  renderItem={({ item }) => (
-                    <Pressable
-                      style={({ pressed }) => [
-                        styles.searchResultItem,
-                        pressed && { backgroundColor: "rgba(245, 158, 11, 0.1)" }
-                      ]}
-                      onPress={() => handleSearchItemPress(item.route)}
-                    >
-                      <View>
-                        <Text style={styles.resultTitle}>{item.title}</Text>
-                        <Text style={styles.resultCategory}>{item.category}</Text>
-                      </View>
-                      <Text style={styles.resultArrow}>→</Text>
-                    </Pressable>
-                  )}
-                />
+  data={searchResults}
+  keyExtractor={(item) => item.id.toString()}
+  renderItem={({ item }) => (
+    <Pressable
+      style={({ pressed }) => [
+        styles.searchResultItem,
+        pressed && { backgroundColor: "rgba(245, 158, 11, 0.1)" }
+      ]}
+      onPress={() => handleSearchItemPress(item.route)}
+    >
+      <View>
+        {/* Shows the Title (Name or ID) */}
+        <Text style={styles.resultTitle}>{item.title}</Text>
+        
+        {/* Displays the Part Code/Category */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={[styles.resultCategory, { color: '#F59E0B' }]}>
+            Code: {item.category}
+          </Text>
+        </View>
+      </View>
+      <Text style={styles.resultArrow}>→</Text>
+    </Pressable>
+  )}
+/>
               ) : (
                 <View style={styles.emptyState}>
                   <Text style={styles.emptyStateText}>

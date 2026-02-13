@@ -19,7 +19,7 @@ export default function Sales() {
 
 const fetchSales = async () => {
   try {
-    const res = await fetch("https://usingrender-x7yq.onrender.com/sales/");
+    const res = await fetch("http://127.0.0.1:8000/");
     if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
     const json = await res.json();
     setSales(json);

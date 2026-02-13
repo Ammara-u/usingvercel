@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { Stack } from "expo-router";
 
-const BASE_URL = "https://usingrender-x7yq.onrender.com";
+const BASE_URL = "http://127.0.0.1:8000/";
 const { width } = Dimensions.get('window');
 const isSmallScreen = width < 400;
 
@@ -100,7 +100,7 @@ export default function Inventory() {
     }
   };
 
-  const handleUpdateStock = async (type) => {
+const handleUpdateStock = async (type) => {
     if (!selectedItem || !quantity) return;
 
     const qtyChange = parseInt(quantity);
@@ -117,9 +117,19 @@ export default function Inventory() {
 
       if (!invRes.ok) throw new Error("Inventory update failed");
 
+      // --- CRITICAL CHANGE START ---
+      // Instead of calling fetchItems(), we update the local state directly.
+      // This preserves the current order of the list.
+      setItems((prevItems) => 
+        prevItems.map((item) => 
+          item.id === selectedItem.id ? { ...item, stock: newStock } : item
+        )
+      );
+      // --- CRITICAL CHANGE END ---
+
       if (type === "sell") {
         const salePayload = {
-          sealName: selectedItem.nameOfSeal,
+          sealName: selectedItem.nameOfSeal || "Unknown Seal",
           quantity: qtyChange,
           sold_price: parseFloat(selectedItem.price)
         };
@@ -133,13 +143,12 @@ export default function Inventory() {
         if (!saleRes.ok) {
           Alert.alert("Partial Success", "Stock updated, but sale record failed.");
         } else {
-          Alert.alert("Success", `Sold ${qtyChange} units of ${selectedItem.nameOfSeal}`);
+          Alert.alert("Success", `Sold ${qtyChange} units`);
         }
       } else {
         Alert.alert("Success", `Stock updated to ${newStock}`);
       }
 
-      fetchItems();
       setSellModalVisible(false);
       setRestockModalVisible(false);
     } catch (err) {
@@ -221,7 +230,7 @@ export default function Inventory() {
             <Text style={{ color: "#94A3B8", marginBottom: 20, textAlign: "center" }}>
               Are you sure you want to delete{"\n"}
               <Text style={{ color: "#F8FAFC", fontWeight: "bold" }}>
-                "{selectedItem?.nameOfSeal}"
+                "{selectedItem?.partCode}"
               </Text>
               ?{"\n"}
               This action cannot be undone.
@@ -330,13 +339,21 @@ export default function Inventory() {
       </Modal>
 
       {/* --- RESTOCK MODAL --- */}
+      {/* --- RESTOCK MODAL --- */}
       <Modal visible={restockModalVisible} transparent={true} animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Restock Seal</Text>
-            <Text style={{ color: "#94A3B8", marginBottom: 15 }}>
-              {selectedItem?.nameOfSeal}
-            </Text>
+            
+            {/* Added Part Code and Volume Display */}
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              <Text style={{ color: "#38BDF8", fontSize: 18, fontWeight: "bold" }}>
+                Code: {selectedItem?.partCode}
+              </Text>
+              <Text style={{ color: "#94A3B8", fontSize: 14, marginTop: 4 }}>
+                Current Volume: <Text style={{ color: "#10B981", fontWeight: "bold" }}>{selectedItem?.stock}</Text>
+              </Text>
+            </View>
 
             <TextInput
               style={styles.formInput}
@@ -345,6 +362,7 @@ export default function Inventory() {
               onChangeText={setQuantity}
               placeholder="Enter amount to add"
               placeholderTextColor="#94A3B8"
+              autoFocus={true} // Opens keyboard automatically
             />
 
             <View style={styles.modalButtons}>
