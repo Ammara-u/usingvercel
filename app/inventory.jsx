@@ -36,7 +36,7 @@ export default function Inventory() {
     description: "",
     price: "",
     stock: "",
-    minStock: "5"
+    minStock: "500"
   });
 
   const handleDeleteSeal = (item) => {
