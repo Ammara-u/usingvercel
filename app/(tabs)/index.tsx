@@ -20,7 +20,7 @@ export default function Index() {
   const [error, setError] = useState("");
 
   // Replace with your actual backend API endpoint
-  const API_BASE_URL = "http://127.0.0.1:8000/";
+  const API_BASE_URL = "https://usingrender-x7yq.onrender.com/";
 
   // Debounce search to avoid excessive API calls
   useEffect(() => {

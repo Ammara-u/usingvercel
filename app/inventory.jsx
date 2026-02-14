@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { Stack } from "expo-router";
 
-const BASE_URL = "http://127.0.0.1:8000/";
+const BASE_URL = "https://usingrender-x7yq.onrender.com";
 const { width } = Dimensions.get('window');
 const isSmallScreen = width < 400;
 
