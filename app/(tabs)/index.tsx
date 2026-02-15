@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet, Image, TextInput, Modal, FlatList, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, StyleSheet, Image, TextInput, Modal, FlatList, ActivityIndicator, Linking } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { useState, useEffect } from "react";
@@ -78,6 +78,10 @@ export default function Index() {
     router.push(route);
   };
 
+  const handleEmailPress = () => {
+    Linking.openURL('mailto:ammaraubaid10@gmail.com');
+  };
+
   return (
     <View style={styles.container}>
       {/* 1. Deep Neutral Background */}
@@ -136,6 +140,17 @@ export default function Index() {
               <Text style={styles.secondaryButtonText}>View Sales</Text>
             </Pressable>
           </View>
+        </View>
+
+        {/* Developer Credit Footer */}
+        <View style={styles.footerContainer}>
+          <View style={styles.footerContent}>
+            <Text style={styles.footerText}>Developed by </Text>
+            <Text style={styles.footerDeveloper}>Ammara Ubaid</Text>
+          </View>
+          <Pressable onPress={handleEmailPress}>
+            <Text style={styles.footerEmail}>ammaraubaid10@gmail.com</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -384,6 +399,39 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
+  },
+
+  /* Developer Footer Styles */
+  footerContainer: {
+    marginTop: 40,
+    alignItems: "center",
+    paddingVertical: 20,
+    paddingHorizontal: 20,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.08)",
+    width: "100%",
+  },
+  footerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  footerText: {
+    color: "#737373",
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  footerDeveloper: {
+    color: "#F59E0B",
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+  },
+  footerEmail: {
+    color: "#A3A3A3",
+    fontSize: 12,
+    fontWeight: "600",
+    textDecorationLine: "underline",
   },
 
   /* Search Modal Styles */
