@@ -30,6 +30,8 @@ export default function Inventory() {
 
   const [selectedItem, setSelectedItem] = useState(null);
   const [quantity, setQuantity] = useState("1");
+  const [errorMessage, setErrorMessage] = useState("");
+  const [showError, setShowError] = useState(false);
 
   const [newItem, setNewItem] = useState({
     partCode: "",
@@ -43,6 +45,17 @@ export default function Inventory() {
     console.log("Delete button clicked for:", item);
     setSelectedItem(item);
     setDeleteModalVisible(true);
+  };
+
+  const displayError = (message) => {
+    setErrorMessage(message);
+    setShowError(true);
+    
+    // Auto-hide error after 3 seconds
+    setTimeout(() => {
+      setShowError(false);
+      setErrorMessage("");
+    }, 3000);
   };
 
   const confirmDeleteSeal = async () => {
@@ -100,13 +113,61 @@ export default function Inventory() {
     }
   };
 
-const handleUpdateStock = async (type) => {
+  const handleUpdateStock = async (type) => {
     if (!selectedItem || !quantity) return;
 
     const qtyChange = parseInt(quantity);
-    const newStock = type === "sell" 
-        ? selectedItem.stock - qtyChange 
-        : selectedItem.stock + qtyChange;
+
+    // --- ENHANCED VALIDATIONS ---
+    // Check if input is a valid number
+    if (isNaN(qtyChange)) {
+      displayError("❌ Invalid Input: Please enter a valid number.");
+      setSellModalVisible(false);
+      setRestockModalVisible(false);
+      setQuantity("1");
+      return;
+    }
+
+    // Check for negative values
+    if (qtyChange < 0) {
+      displayError("❌ Invalid Input: Quantity cannot be negative.");
+      setSellModalVisible(false);
+      setRestockModalVisible(false);
+      setQuantity("1");
+      return;
+    }
+
+    // Check for zero or negative after conversion
+    if (qtyChange <= 0) {
+      displayError("❌ Invalid Input: Please enter a number greater than 0.");
+      setSellModalVisible(false);
+      setRestockModalVisible(false);
+      setQuantity("1");
+      return;
+    }
+
+    // For selling: cannot sell more than current stock
+    if (type === "sell" && qtyChange > selectedItem.stock) {
+      displayError(
+        `❌ Not Enough Stock: Cannot sell ${qtyChange} units. Only ${selectedItem.stock} available.`
+      );
+      setSellModalVisible(false);
+      setQuantity("1");
+      return;
+    }
+
+    const newStock = type === "sell"
+      ? selectedItem.stock - qtyChange
+      : selectedItem.stock + qtyChange;
+
+    // Additional check: ensure new stock doesn't go negative
+    if (newStock < 0) {
+      displayError("❌ Invalid Operation: Stock cannot be negative.");
+      setSellModalVisible(false);
+      setRestockModalVisible(false);
+      setQuantity("1");
+      return;
+    }
 
     try {
       const invRes = await fetch(`${BASE_URL}/seals/${selectedItem.id}/`, {
@@ -117,21 +178,17 @@ const handleUpdateStock = async (type) => {
 
       if (!invRes.ok) throw new Error("Inventory update failed");
 
-      // --- CRITICAL CHANGE START ---
-      // Instead of calling fetchItems(), we update the local state directly.
-      // This preserves the current order of the list.
-      setItems((prevItems) => 
-        prevItems.map((item) => 
+      setItems((prevItems) =>
+        prevItems.map((item) =>
           item.id === selectedItem.id ? { ...item, stock: newStock } : item
         )
       );
-      // --- CRITICAL CHANGE END ---
 
       if (type === "sell") {
         const salePayload = {
-          sealName: selectedItem.nameOfSeal || "Unknown Seal",
+          partCode: selectedItem.partCode,  // Backend expects 'seal_partCode'
           quantity: qtyChange,
-          sold_price: parseFloat(selectedItem.price)
+          sold_price: parseFloat(selectedItem.price),
         };
 
         const saleRes = await fetch(`${BASE_URL}/sales/`, {
@@ -141,19 +198,23 @@ const handleUpdateStock = async (type) => {
         });
 
         if (!saleRes.ok) {
-          Alert.alert("Partial Success", "Stock updated, but sale record failed.");
+          displayError("⚠️ Partial Success: Stock updated, but sale record failed.");
         } else {
-          Alert.alert("Success", `Sold ${qtyChange} units`);
+          displayError(`✅ Success: Sold ${qtyChange} units`);
         }
       } else {
-        Alert.alert("Success", `Stock updated to ${newStock}`);
+        displayError(`✅ Success: Stock updated to ${newStock}`);
       }
 
       setSellModalVisible(false);
       setRestockModalVisible(false);
+      setQuantity("1");
     } catch (err) {
       console.error(err);
-      Alert.alert("Error", "Network or server error.");
+      displayError("❌ Error: Network or server error.");
+      setSellModalVisible(false);
+      setRestockModalVisible(false);
+      setQuantity("1");
     }
   };
 
@@ -201,13 +262,13 @@ const handleUpdateStock = async (type) => {
 
   const openRestockModal = (item) => {
     setSelectedItem(item);
-    setQuantity("0");
+    setQuantity("1");
     setRestockModalVisible(true);
   };
 
   const openSellModal = (item) => {
     setSelectedItem(item);
-    setQuantity("0");
+    setQuantity("1");
     setSellModalVisible(true);
   };
 
@@ -221,6 +282,13 @@ const handleUpdateStock = async (type) => {
           headerTintColor: "#fff"
         }}
       />
+
+      {/* --- ERROR BANNER --- */}
+      {showError && (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        </View>
+      )}
 
       {/* --- DELETE CONFIRMATION MODAL --- */}
       <Modal visible={deleteModalVisible} transparent={true} animationType="fade">
@@ -265,8 +333,6 @@ const handleUpdateStock = async (type) => {
             <Text style={styles.modalTitle}>New Entry</Text>
 
             <ScrollView style={{ width: "100%" }}>
-              
-
               <Text style={styles.inputLabel}>Part Code</Text>
               <TextInput
                 style={styles.formInput}
@@ -292,7 +358,6 @@ const handleUpdateStock = async (type) => {
                 style={styles.formInput}
                 placeholder="0.00"
                 placeholderTextColor="#94A3B8"
-                keyboardType="numeric"
                 value={newItem.price}
                 onChangeText={(t) => setNewItem({ ...newItem, price: t })}
               />
@@ -339,13 +404,11 @@ const handleUpdateStock = async (type) => {
       </Modal>
 
       {/* --- RESTOCK MODAL --- */}
-      {/* --- RESTOCK MODAL --- */}
       <Modal visible={restockModalVisible} transparent={true} animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Restock Seal</Text>
             
-            {/* Added Part Code and Volume Display */}
             <View style={{ alignItems: 'center', marginBottom: 20 }}>
               <Text style={{ color: "#38BDF8", fontSize: 18, fontWeight: "bold" }}>
                 Code: {selectedItem?.partCode}
@@ -362,13 +425,16 @@ const handleUpdateStock = async (type) => {
               onChangeText={setQuantity}
               placeholder="Enter amount to add"
               placeholderTextColor="#94A3B8"
-              autoFocus={true} // Opens keyboard automatically
+              autoFocus={true}
             />
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalBtn, { backgroundColor: "#334155" }]}
-                onPress={() => setRestockModalVisible(false)}
+                onPress={() => {
+                  setRestockModalVisible(false);
+                  setQuantity("1");
+                }}
               >
                 <Text style={styles.btnText}>Cancel</Text>
               </TouchableOpacity>
@@ -389,9 +455,15 @@ const handleUpdateStock = async (type) => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Sell Seal</Text>
-            <Text style={{ color: "#94A3B8", marginBottom: 15 }}>
-              {selectedItem?.nameOfSeal}
-            </Text>
+            
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+              <Text style={{ color: "#F59E0B", fontSize: 18, fontWeight: "bold" }}>
+                Code: {selectedItem?.partCode}
+              </Text>
+              <Text style={{ color: "#94A3B8", fontSize: 14, marginTop: 4 }}>
+                Available Stock: <Text style={{ color: "#10B981", fontWeight: "bold" }}>{selectedItem?.stock}</Text>
+              </Text>
+            </View>
 
             <TextInput
               style={styles.formInput}
@@ -400,12 +472,16 @@ const handleUpdateStock = async (type) => {
               onChangeText={setQuantity}
               placeholder="Enter quantity to sell"
               placeholderTextColor="#94A3B8"
+              autoFocus={true}
             />
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalBtn, { backgroundColor: "#334155" }]}
-                onPress={() => setSellModalVisible(false)}
+                onPress={() => {
+                  setSellModalVisible(false);
+                  setQuantity("1");
+                }}
               >
                 <Text style={styles.btnText}>Cancel</Text>
               </TouchableOpacity>
@@ -440,28 +516,26 @@ const handleUpdateStock = async (type) => {
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
             <View style={styles.itemCard}>
-              {/* Main Row */}
-              <View style={styles.mainRow}>
-                
-<Text style={[styles.cell, { flex: 1.5, textAlign: "left", fontWeight: "bold" }]}>
-  {item.partCode}
-</Text>
+              <View style={styles.dataRow}>
+                {/* Part Code - aligned with CODE header */}
+                <Text style={[styles.cell, { fontWeight: "bold", color: "#F8FAFC" }]}>
+                  {item.partCode}
+                </Text>
+
+                {/* Price - aligned with PRICE header */}
                 <Text style={styles.cell}>Rs {item.price}</Text>
+
+                {/* Stock - aligned with STOCK header */}
                 <Text
                   style={[
                     styles.cell,
-                    {
-                      fontWeight: "bold",
-                      color: item.stock <= item.minStock
-                        ? "#EF4444" 
-                        : "#10B981"
-                    }
+                    { fontWeight: "bold", color: item.stock <= item.minStock ? "#EF4444" : "#10B981" }
                   ]}
                 >
                   {item.stock}
                 </Text>
 
-                {/* Actions on same row for larger screens */}
+                {/* Actions - aligned with ACTIONS header */}
                 {!isSmallScreen && (
                   <View style={[styles.actionCell, { flex: 1.2 }]}>
                     <TouchableOpacity
@@ -475,7 +549,7 @@ const handleUpdateStock = async (type) => {
                       style={styles.addBtn}
                       onPress={() => openRestockModal(item)}
                     >
-                      <Text style={styles.btnText}>+</Text>
+                      <Text style={styles.btnText}>+ Add</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -488,7 +562,7 @@ const handleUpdateStock = async (type) => {
                 )}
               </View>
 
-              {/* Actions on second row for small screens */}
+              {/* Show actions below on small screens */}
               {isSmallScreen && (
                 <View style={styles.actionRow}>
                   <TouchableOpacity
@@ -502,14 +576,14 @@ const handleUpdateStock = async (type) => {
                     style={[styles.addBtn, { flex: 1 }]}
                     onPress={() => openRestockModal(item)}
                   >
-                    <Text style={styles.btnText}>Restock</Text>
+                    <Text style={styles.btnText}>+ Add</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={[styles.deleteBtn, { flex: 1 }]}
                     onPress={() => handleDeleteSeal(item)}
                   >
-                    <Text style={styles.btnText}>🗑 Delete</Text>
+                    <Text style={styles.btnText}>🗑</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -540,12 +614,24 @@ const styles = StyleSheet.create({
   },
   headerRow: {
     flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#334155",
     paddingBottom: 10,
-    marginBottom: 10
+    marginBottom: 15,
+    gap: 4
   },
-  columnHeader: { flex: 1, color: "#64748B", fontWeight: "bold", fontSize: 12, textAlign: "center" },
+  columnHeader: { 
+    flex: 1, 
+    color: "#F8FAFC", 
+    fontWeight: "bold", 
+    fontSize: 13, 
+    textAlign: "center",
+    backgroundColor: "#334155",
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    overflow: "hidden",
+    textTransform: "uppercase",
+    letterSpacing: 0.5
+  },
   itemCard: {
     backgroundColor: "#1E293B",
     padding: 15,
@@ -554,9 +640,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#334155"
   },
-  mainRow: {
+  dataRow: {
     flexDirection: "row",
-    alignItems: "center"
+    alignItems: "center",
+    gap: 4
   },
   actionRow: {
     flexDirection: "row",
@@ -566,18 +653,43 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: "#334155"
   },
-  deleteBtn: {
-    backgroundColor: "#EF4444",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 6,
+  cell: { 
+    flex: 1, 
+    textAlign: "center", 
+    color: "#CBD5E1", 
+    fontSize: 14 
   },
-  cell: { flex: 1, textAlign: "center", color: "#CBD5E1", fontSize: 13 },
-  nameText: { fontWeight: "bold", color: "#F8FAFC", textAlign: "left" },
-  actionCell: { flexDirection: "row", gap: 8 },
-  sellBtn: { backgroundColor: "#F59E0B", paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6 },
-  addBtn: { backgroundColor: "#38BDF8", paddingVertical: 6, paddingHorizontal: 12, borderRadius: 6 },
-  btnText: { color: "white", fontSize: 12, fontWeight: "bold", textAlign: "center" },
+  actionCell: { 
+    flexDirection: "row", 
+    gap: 6, 
+    flex: 1.2,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  sellBtn: { 
+    backgroundColor: "#F59E0B", 
+    paddingVertical: 6, 
+    paddingHorizontal: 10, 
+    borderRadius: 6 
+  },
+  addBtn: { 
+    backgroundColor: "#38BDF8", 
+    paddingVertical: 6, 
+    paddingHorizontal: 10, 
+    borderRadius: 6 
+  },
+  deleteBtn: { 
+    backgroundColor: "#EF4444", 
+    paddingVertical: 6, 
+    paddingHorizontal: 10, 
+    borderRadius: 6 
+  },
+  btnText: { 
+    color: "white", 
+    fontSize: 12, 
+    fontWeight: "bold", 
+    textAlign: "center" 
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.7)",
@@ -593,7 +705,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#334155"
   },
-  modalTitle: { fontSize: 20, fontWeight: "bold", color: "#F8FAFC", marginBottom: 10 },
+  modalTitle: { 
+    fontSize: 20, 
+    fontWeight: "bold", 
+    color: "#F8FAFC", 
+    marginBottom: 10 
+  },
   formInput: {
     backgroundColor: "#0F172A",
     color: "#FFF",
@@ -605,5 +722,29 @@ const styles = StyleSheet.create({
     borderColor: "#334155"
   },
   modalButtons: { flexDirection: "row", gap: 10 },
-  modalBtn: { padding: 12, borderRadius: 10, flex: 1, alignItems: "center" }
+  modalBtn: { padding: 12, borderRadius: 10, flex: 1, alignItems: "center" },
+  errorBanner: {
+    position: "absolute",
+    top: 80,
+    left: 16,
+    right: 16,
+    backgroundColor: "#1E293B",
+    borderWidth: 2,
+    borderColor: "#F59E0B",
+    borderRadius: 12,
+    padding: 16,
+    zIndex: 1000,
+    shadowColor: "#F59E0B",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  errorText: {
+    color: "#F8FAFC",
+    fontSize: 14,
+    fontWeight: "600",
+    textAlign: "center",
+    lineHeight: 20,
+  }
 });

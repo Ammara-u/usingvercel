@@ -4,7 +4,7 @@
     "slug": "seals-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.jpg",
+    "icon": "./assets/images/1.png",
     "scheme": "sealsapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -14,9 +14,9 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/Dark Illustrative Royal Eagle Gaming Logo.png",
-        "backgroundImage": "./assets/images/Dark Illustrative Royal Eagle Gaming Logo.png",
-        "monochromeImage": "./assets/images/ealgeimage2.png"
+        "foregroundImage": "./assets/images/2.png",
+        "backgroundImage": "./assets/images/2.png",
+        "monochromeImage": "./assets/images/2.png"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
