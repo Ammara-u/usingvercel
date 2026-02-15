@@ -20,7 +20,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
+          tabBarStyle: { display: 'none' }, // hides bottom bar for this tab
         }}
       />
       <Tabs.Screen
