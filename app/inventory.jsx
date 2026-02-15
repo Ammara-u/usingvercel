@@ -338,7 +338,6 @@ export default function Inventory() {
                 style={styles.formInput}
                 placeholder="e.g. 100234"
                 placeholderTextColor="#94A3B8"
-                keyboardType="numeric"
                 value={newItem.partCode}
                 onChangeText={(t) => setNewItem({ ...newItem, partCode: t })}
               />
